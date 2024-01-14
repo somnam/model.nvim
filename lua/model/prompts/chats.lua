@@ -3,6 +3,7 @@ local palm = require('model.providers.palm')
 local llamacpp = require('model.providers.llamacpp')
 local ollama = require('model.providers.ollama')
 local together = require('model.providers.together')
+local copilot = require("model.providers.copilot")
 
 local zephyr_fmt = require('model.format.zephyr')
 local starling_fmt = require('model.format.starling')
@@ -162,7 +163,22 @@ local chats = {
       return git_diff
     end,
     run = openai_chat.run
-  }
+  },
+  copilot = copilot.chat.build_chat(
+    copilot.chat.instructions.default, input_if_selection
+  ),
+  ["copilot:explain"] = copilot.chat.build_chat(
+    copilot.chat.instructions.explain, copilot.chat.code_excerpt
+  ),
+  ["copilot:tests"] = copilot.chat.build_chat(
+    copilot.chat.instructions.tests, copilot.chat.code_excerpt
+  ),
+  ["copilot:fix"] = copilot.chat.build_chat(
+    copilot.chat.instructions.fix, copilot.chat.code_excerpt
+  ),
+  ["copilot:new"] = copilot.chat.build_chat(
+    copilot.chat.instructions.new, input_if_selection
+  ),
 }
 
 return chats

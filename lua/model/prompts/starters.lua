@@ -5,6 +5,7 @@ local huggingface = require('model.providers.huggingface')
 local llamacpp = require('model.providers.llamacpp')
 local together = require('model.providers.together')
 local ollama = require('model.providers.ollama')
+local copilot = require("model.providers.copilot")
 
 -- prompt helpers
 local extract = require('model.prompts.extract')
@@ -135,6 +136,7 @@ local starters = {
     end,
     transform = extract.markdown_code
   },
+  copilot = copilot.chat.default_prompt,
   commit = {
     provider = openai,
     mode = mode.INSERT,
