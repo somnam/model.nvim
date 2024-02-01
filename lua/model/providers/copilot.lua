@@ -122,7 +122,7 @@ copilot.generate_new_api_key = function(on_complete, on_error)
 end
 
 copilot.chat = {
-  url = "https://copilot-proxy.githubusercontent.com/v1/",
+  url = "https://api.githubcopilot.com/",
   endpoint = "chat/completions",
   headers = {
     ["Editor-Version"] = "vscode/1.86.0",
