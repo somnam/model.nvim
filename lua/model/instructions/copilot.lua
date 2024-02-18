@@ -168,18 +168,23 @@ Response:
 To read a file, you can use a [`FileReader`](src/fs/fileReader.ts) class from [src/fs/fileReader.ts](src/fs/fileReader.ts).
 ]]
 
-
-M.CODE_EXCERPT = [[
-Active selection:
-```%s
-%s
-```
+M.SENIOR_INSTRUCTION = M.INSTRUCTION ..  [[
+You're also a 10x senior developer that is an expert in programming.
+Your job is to change the user's code according to their needs.
+Your job is only to change / edit the code.
+Your code output should keep the same level of indentation as the user's code.
+You MUST add whitespace in the beginning of each line as needed to match the user's code.
 ]]
+
 
 M.TEST_SHORTCUT = "Write a set of detailed unit test functions for the code above."
 
 M.EXPLAIN_SHORTCUT = "Write a explanation for the code above as paragraphs of text."
 
 M.FIX_SHORTCUT = "There is a problem in this code. Rewrite the code to show it with the bug fixed."
+
+M.NEW_SHORTCUT = "Scaffold code for a new workspace."
+
+M.REFACTOR_SHORTCUT = "Refactor, modify or enhance the existing code."
 
 return M

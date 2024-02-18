@@ -358,6 +358,12 @@ function M.cursor.place_with_keys(position)
   return keys
 end
 
+function M.cursor.place_at_end(bufnr)
+  bufnr = bufnr ~= nil and bufnr or vim.api.nvim_get_current_buf()
+  local line_count = vim.api.nvim_buf_line_count(bufnr)
+  vim.api.nvim_win_set_cursor(vim.api.nvim_get_current_win(), { line_count, 0 })
+end
+
 M.position = {}
 
 -- b is less than a
@@ -509,6 +515,34 @@ function M.module.autopairs(table)
   end
 
   return pairs(table)
+end
+
+M.markdown = {}
+
+M.markdown.active_selection_tmpl = [[
+Active selection:
+```%s
+%s
+```
+]]
+
+M.markdown.format_active_selection = function(input, filetype)
+  return string.format(
+    M.markdown.active_selection_tmpl,
+    (filetype or ""),
+    (input or "")
+  )
+end
+
+M.markdown.format_active_selection_list = function(lines, filetype)
+  return vim.split(
+    string.format(
+      M.markdown.active_selection_tmpl,
+      (filetype or ""),
+      table.concat(lines, "\n")
+    ),
+    "\n"
+  )
 end
 
 return M

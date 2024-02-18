@@ -137,6 +137,18 @@ local starters = {
     transform = extract.markdown_code
   },
   copilot = copilot.chat.default_prompt,
+  ["copilot:explain"] = copilot.chat.build_prompt(
+    copilot.chat.kind.EXPLAIN, mode.MARKDOWN_BUFFER
+  ),
+  ["copilot:refactor"] = copilot.chat.build_prompt(
+    copilot.chat.kind.REFACTOR, mode.MARKDOWN_BUFFER
+  ),
+  ["copilot:tests"] = copilot.chat.build_prompt(
+    copilot.chat.kind.TESTS, mode.MARKDOWN_BUFFER
+  ),
+  ["copilot:fix"] = copilot.chat.build_prompt(
+    copilot.chat.kind.FIX, mode.MARKDOWN_BUFFER
+  ),
   commit = {
     provider = openai,
     mode = mode.INSERT,

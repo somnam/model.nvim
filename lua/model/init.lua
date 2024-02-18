@@ -286,6 +286,13 @@ local function setup_commands()
     }
   )
 
+  local function get_chat_prompt(chat_name)
+    return assert(
+      vim.tbl_get(M.opts, "chats", chat_name),
+      "Chat prompt \"" .. chat_name .. "\" not found in setup({chats = {..}})"
+    )
+  end
+
   vim.api.nvim_create_user_command(
     'Mchat',
     function(cmd_params)
@@ -294,10 +301,12 @@ local function setup_commands()
 
       if chat_name ~= nil and chat_name ~= '' then -- `:Mchat [name]`
 
-        local chat_prompt = assert(
-          vim.tbl_get(M.opts, 'chats', chat_name),
-          'Chat prompt "' .. chat_name .. '" not found in setup({chats = {..}})'
-        )
+        local chat_prompt = get_chat_prompt(chat_name)
+
+        if chat_prompt.provider.filetype == "markdown" then
+          chat.create_markdown_chat(cmd_params, chat_name, chat_prompt)
+          return chat.run_markdown_chat(chat_prompt)
+        end
 
         local input_context =
           input.get_input_context(
@@ -347,6 +356,13 @@ local function setup_commands()
         end
 
       else -- `:Mchat`
+        if chat.has_chat_contents_var() then
+          local chat_prompt = get_chat_prompt(chat.chat_name_from_markdown())
+          local chat_contents = chat.contents_from_markdown(chat_prompt)
+
+          chat.set_chat_contents_var(chat_contents)
+          return chat.run_markdown_chat(chat_prompt)
+        end
 
         if vim.o.ft ~= 'mchat' then
           error('Not in mchat buffer. Either `:set ft=mchat` or run `:Mchat [name]`.')

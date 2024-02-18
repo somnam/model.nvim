@@ -25,6 +25,7 @@ M.mode = {
   APPEND = 'append', -- append to the end of input
   REPLACE = 'replace', -- replace input
   BUFFER = 'buffer', -- create a new buffer and insert
+  MARKDOWN_BUFFER = 'markdown_buffer', -- create a new markdown buffer and insert
   INSERT = 'insert', -- insert at the cursor position
   INSERT_OR_REPLACE = 'insert_or_replace' -- insert at the cursor position if no selection, or replace the selection
 }
@@ -88,6 +89,8 @@ local function create_segment(source, segment_mode, hl_group)
     local pos = util.cursor.position()
 
     return segment.create_segment_at(pos.row, pos.col, hl_group, 0)
+  elseif segment_mode == M.mode.MARKDOWN_BUFFER then
+    return M.create_markdown_buffer_segment(source, hl_group)
   else
     error('Unknown segment mode: ' .. segment_mode)
   end
@@ -267,6 +270,26 @@ function M.request_multi_completion_streams(prompts, want_visual_selection)
       )
     end, i * 200)
   end
+end
+
+M.create_markdown_buffer_segment = function(source, hl_group)
+  local filetype = vim.bo.filetype or ""
+
+  vim.cmd.vnew()
+
+  vim.o.ft = "markdown"
+  vim.api.nvim_set_option_value("buflisted", true, { scope = "local" })
+  vim.api.nvim_set_option_value("wrap", true, { scope = "local" })
+  vim.api.nvim_set_option_value("linebreak", true, { scope = "local" })
+  vim.api.nvim_set_option_value("buftype", "nowrite", { scope = "local" })
+
+  local lines = util.markdown.format_active_selection_list(source.lines, filetype)
+
+  vim.api.nvim_buf_set_lines(0, -2, -1, false, lines)
+
+  -- Create a segment at the end of the buffer
+  local line_count = vim.api.nvim_buf_line_count(0)
+  return segment.create_segment_at(line_count, 0, hl_group, 0)
 end
 
 return M

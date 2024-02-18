@@ -165,19 +165,22 @@ local chats = {
     run = openai_chat.run
   },
   copilot = copilot.chat.build_chat(
-    copilot.chat.instructions.default, input_if_selection
+    copilot.chat.kind.DEFAULT, copilot.chat.user_selection
   ),
   ["copilot:explain"] = copilot.chat.build_chat(
-    copilot.chat.instructions.explain, copilot.chat.code_excerpt
+    copilot.chat.kind.EXPLAIN, copilot.chat.user_selection
+  ),
+  ["copilot:refactor"] = copilot.chat.build_chat(
+    copilot.chat.kind.REFACTOR, copilot.chat.user_selection
   ),
   ["copilot:tests"] = copilot.chat.build_chat(
-    copilot.chat.instructions.tests, copilot.chat.code_excerpt
+    copilot.chat.kind.TESTS, copilot.chat.user_selection
   ),
   ["copilot:fix"] = copilot.chat.build_chat(
-    copilot.chat.instructions.fix, copilot.chat.code_excerpt
+    copilot.chat.kind.FIX, copilot.chat.user_selection
   ),
   ["copilot:new"] = copilot.chat.build_chat(
-    copilot.chat.instructions.new, input_if_selection
+    copilot.chat.kind.NEW, copilot.chat.user_args
   ),
 }
 

@@ -121,6 +121,15 @@ copilot.generate_new_api_key = function(on_complete, on_error)
   )
 end
 
+local chat_kind = {
+  DEFAULT = "default",
+  FIX = "fix",
+  EXPLAIN = "explain",
+  TESTS = "tests",
+  NEW = "new",
+  REFACTOR = "refactor",
+}
+
 copilot.chat = {
   url = "https://api.githubcopilot.com/",
   endpoint = "chat/completions",
@@ -140,17 +149,21 @@ copilot.chat = {
     temperature = 0.1,
     top_p = 1,
   },
+  filetype = "markdown",
+  kind = chat_kind,
   shortcuts = {
-    fix = instructions.FIX_SHORTCUT,
-    explain = instructions.EXPLAIN_SHORTCUT,
-    tests = instructions.TEST_SHORTCUT,
+    [chat_kind.EXPLAIN] = instructions.EXPLAIN_SHORTCUT,
+    [chat_kind.FIX] = instructions.FIX_SHORTCUT,
+    [chat_kind.NEW] = instructions.NEW_SHORTCUT,
+    [chat_kind.REFACTOR] = instructions.REFACTOR_SHORTCUT,
+    [chat_kind.TESTS] = instructions.TEST_SHORTCUT,
   },
   instructions = {
-    fix = instructions.FIX_INSTRUCTION,
-    explain = instructions.EXPLAIN_INSTRUCTION,
-    tests = instructions.TESTS_INSTRUCTION,
-    new = instructions.NEW_INSTRUCTION,
-    default = instructions.INSTRUCTION,
+    [chat_kind.DEFAULT] = instructions.INSTRUCTION,
+    [chat_kind.FIX] = instructions.FIX_INSTRUCTION,
+    [chat_kind.NEW] = instructions.NEW_INSTRUCTION,
+    [chat_kind.REFACTOR] = instructions.SENIOR_INSTRUCTION,
+    [chat_kind.TESTS] = instructions.TESTS_INSTRUCTION,
   },
 }
 
@@ -167,7 +180,7 @@ copilot.chat.extract_chat_data = function(data)
   end
 end
 
-copilot.chat.request_completion = function(handlers, params, options)
+copilot.chat.request_completion = function(handlers, params, _)
 
   async(function(wait, resolve)
     local api_key = copilot.api_key or copilot.read_api_key_file()
@@ -222,34 +235,19 @@ copilot.chat.request_completion = function(handlers, params, options)
 
 end
 
-copilot.chat.builder = function(input, context)
-  local instruction = (
-    copilot.chat.instructions[input]
+copilot.chat.instruction_from_kind = function(kind)
+  return (
+    copilot.chat.instructions[kind]
     or copilot.chat.instructions.default
   )
-  local messages = {
-    {
-      role = "system",
-      content = instruction,
-    },
-  }
+end
 
-  if context.selection then
-    local filetype = vim.bo.filetype
-    table.insert(messages, {
-      role = "system",
-      content = string.format(instructions.CODE_EXCERPT, filetype, input),
-    })
-  end
+copilot.chat.shortcut_from_kind = function(kind)
+  return copilot.chat.shortcuts[kind] or ""
+end
 
-  if #context.args > 0 then
-    table.insert(messages, {
-      role = "user",
-      content = context.args,
-    })
-  end
-
-  return { messages = messages }
+copilot.chat.builder = function(input, context, kind)
+  return copilot.chat.user_selection(input, context, kind)
 end
 
 copilot.chat.default_prompt = {
@@ -258,51 +256,78 @@ copilot.chat.default_prompt = {
   params = copilot.chat.params,
 }
 
-copilot.chat.to_system = function(instruction)
-  return string.gsub(instruction, "\n", " ")
+copilot.chat.user_args_messages = function(context, kind)
+  local content = #context.args > 0 and context.args or copilot.chat.shortcut_from_kind(kind)
+
+  return {
+    {
+      role = "user",
+      content = content,
+    }
+  }
 end
 
-copilot.chat.code_excerpt = function(input, context)
+copilot.chat.user_args = function(context, kind)
+  return { messages = copilot.chat.user_args_messages(context, kind) }
+end
+
+copilot.chat.user_selection_messages = function(input, context, kind)
+  local messages = {}
+
   if context.selection then
-    local filetype = vim.bo.filetype
-    return string.format(instructions.CODE_EXCERPT, filetype, input)
+    local filetype = vim.bo.filetype or ""
+    table.insert(
+      messages,
+      {
+        role = "system",
+        content = util.markdown.format_active_selection(input, filetype),
+      }
+    )
   end
 
-  return ""
+  vim.list_extend(messages, copilot.chat.user_args_messages(context, kind))
+
+  return messages
 end
 
-copilot.chat.run = function(messages, config)
+copilot.chat.user_selection = function(input, context, kind)
+  return { messages = copilot.chat.user_selection_messages(input, context, kind) }
+end
+
+copilot.chat.run = function(messages, _, kind)
   table.insert(messages, 1, {
     role = "system",
-    content = config.system
+    content = copilot.chat.instruction_from_kind(kind),
   })
 
   return { messages = messages }
 end
 
-copilot.chat.build_prompt = function(prompt_args, prompt_mode)
+copilot.chat.build_prompt = function(kind, prompt_mode)
   return vim.tbl_deep_extend(
     "force",
     copilot.chat.default_prompt,
     {
       builder = function(input, context)
-        context.args = prompt_args
-        return copilot.chat.builder(input, context)
+        return copilot.chat.builder(input, context, kind)
       end,
       mode = prompt_mode,
     }
   )
 end
 
-copilot.chat.build_chat = function(chat_instruction, chat_create)
+copilot.chat.build_chat = function(kind, create_cb)
   return {
     provider = copilot.chat,
-    system = copilot.chat.to_system(chat_instruction),
+    system = copilot.chat.instruction_from_kind(kind),
     params = copilot.chat.params,
-    create = chat_create,
-    run = copilot.chat.run,
+    create = function(input, context)
+      return create_cb(input, context, kind)
+    end,
+    run = function(messages, config)
+      return copilot.chat.run(messages, config, kind)
+    end,
   }
 end
 
 return copilot
-
