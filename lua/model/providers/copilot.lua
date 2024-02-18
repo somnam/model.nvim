@@ -128,6 +128,7 @@ local chat_kind = {
   TESTS = "tests",
   NEW = "new",
   REFACTOR = "refactor",
+  WORKSPACE = "workspace",
 }
 
 copilot.chat = {
@@ -142,7 +143,7 @@ copilot.chat = {
     ["Content-Type"] = "application/json",
   },
   params = {
-    model = "gpt-3.5-turbo",
+    model = "copilot-chat",
     intent = true,
     stream = true,
     n = 1,
@@ -257,7 +258,10 @@ copilot.chat.default_prompt = {
 }
 
 copilot.chat.user_args_messages = function(context, kind)
-  local content = #context.args > 0 and context.args or copilot.chat.shortcut_from_kind(kind)
+  local content = copilot.chat.shortcut_from_kind(kind)
+  if context.args ~= nil and #context.args > 0 then
+    content = context.args
+  end
 
   return {
     {
@@ -303,7 +307,7 @@ copilot.chat.run = function(messages, _, kind)
   return { messages = messages }
 end
 
-copilot.chat.build_prompt = function(kind, prompt_mode)
+copilot.chat.build_prompt = function(kind, prompt_mode, params)
   return vim.tbl_deep_extend(
     "force",
     copilot.chat.default_prompt,
@@ -311,16 +315,25 @@ copilot.chat.build_prompt = function(kind, prompt_mode)
       builder = function(input, context)
         return copilot.chat.builder(input, context, kind)
       end,
+      params = vim.tbl_deep_extend(
+        "force",
+        copilot.chat.params,
+        (params or {})
+      ),
       mode = prompt_mode,
     }
   )
 end
 
-copilot.chat.build_chat = function(kind, create_cb)
+copilot.chat.build_chat = function(kind, create_cb, params)
   return {
     provider = copilot.chat,
     system = copilot.chat.instruction_from_kind(kind),
-    params = copilot.chat.params,
+    params = vim.tbl_deep_extend(
+      "force",
+      copilot.chat.params,
+      (params or {})
+    ),
     create = function(input, context)
       return create_cb(input, context, kind)
     end,

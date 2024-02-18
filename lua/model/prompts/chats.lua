@@ -173,6 +173,9 @@ local chats = {
   ["copilot:refactor"] = copilot.chat.build_chat(
     copilot.chat.kind.REFACTOR, copilot.chat.user_selection
   ),
+  ["copilot:workspace"] = copilot.chat.build_chat(
+    copilot.chat.kind.WORKSPACE, copilot.chat.user_args
+  ),
   ["copilot:tests"] = copilot.chat.build_chat(
     copilot.chat.kind.TESTS, copilot.chat.user_selection
   ),
