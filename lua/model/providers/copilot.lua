@@ -17,8 +17,7 @@ local copilot = {
   hosts_file = "hosts.json",
   oauth_token = nil,
   -- Github Copilot api key
-  api_key_path = vim.fn.stdpath("data"),
-  api_key_file = "github-copilot-api-key.json",
+  api_key_file = "api-key.json",
   api_key_headers = {
     ["Editor-Version"] = "vscode/1.86.0",
     ["Editor-Plugin-Version"] = "copilot-chat/0.12.2023122001",
@@ -68,12 +67,12 @@ copilot.get_oauth_token = function()
 end
 
 copilot.read_api_key_file = function()
-  local json_file = string.format("%s/%s", copilot.api_key_path, copilot.api_key_file)
+  local json_file = string.format("%s/%s", copilot.config_path, copilot.api_key_file)
   return file.read_json_file(json_file)
 end
 
 copilot.write_api_key_file = function(api_key)
-  local json_file = string.format("%s/%s", copilot.api_key_path, copilot.api_key_file)
+  local json_file = string.format("%s/%s", copilot.config_path, copilot.api_key_file)
   return file.write_json_file(json_file, api_key)
 end
 
@@ -122,12 +121,13 @@ copilot.generate_new_api_key = function(on_complete, on_error)
 end
 
 local chat_kind = {
+  COMMIT = "commit",
   DEFAULT = "default",
-  FIX = "fix",
   EXPLAIN = "explain",
-  TESTS = "tests",
+  FIX = "fix",
   NEW = "new",
   REFACTOR = "refactor",
+  TESTS = "tests",
   WORKSPACE = "workspace",
 }
 
@@ -153,6 +153,7 @@ copilot.chat = {
   filetype = "markdown",
   kind = chat_kind,
   shortcuts = {
+    [chat_kind.COMMIT] = instructions.COMMIT_SHORTCUT,
     [chat_kind.EXPLAIN] = instructions.EXPLAIN_SHORTCUT,
     [chat_kind.FIX] = instructions.FIX_SHORTCUT,
     [chat_kind.NEW] = instructions.NEW_SHORTCUT,
@@ -182,7 +183,6 @@ copilot.chat.extract_chat_data = function(data)
 end
 
 copilot.chat.request_completion = function(handlers, params, _)
-
   async(function(wait, resolve)
     local api_key = copilot.api_key or copilot.read_api_key_file()
     local should_generate_new_api_key = copilot.should_generate_new_api_key(api_key)
@@ -342,5 +342,9 @@ copilot.chat.build_chat = function(kind, create_cb, params)
     end,
   }
 end
+
+copilot.chat.default_chat = copilot.chat.build_chat(
+  copilot.chat.kind.DEFAULT, copilot.chat.user_selection
+)
 
 return copilot

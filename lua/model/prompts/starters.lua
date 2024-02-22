@@ -149,6 +149,21 @@ local starters = {
   ["copilot:fix"] = copilot.chat.build_prompt(
     copilot.chat.kind.FIX, mode.MARKDOWN_BUFFER
   ),
+  ["copilot:commit"] = vim.tbl_deep_extend(
+    "force",
+    copilot.chat.default_prompt,
+    {
+      builder = function()
+        return {
+          messages = {
+            { role = "system", content = util.markdown.format_git_diff(util.git.diff()) },
+            { role = "user", content = copilot.chat.shortcuts[copilot.chat.kind.COMMIT] },
+          }
+        }
+      end,
+      mode = mode.INSERT,
+    }
+  ),
   commit = {
     provider = openai,
     mode = mode.INSERT,

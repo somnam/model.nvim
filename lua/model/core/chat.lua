@@ -408,7 +408,8 @@ M.create_markdown_buffer = function(chat_name, chat_contents, smods)
   vim.o.ft = "markdown"
 
   local bufnr = vim.api.nvim_get_current_buf()
-  vim.api.nvim_buf_set_name(bufnr, string.format("chat_%s.md", os.time()))
+  local date = os.date("%Y-%m-%d %H:%M:%S")
+  vim.api.nvim_buf_set_name(bufnr, string.format("chat at %s.md", date))
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, chat_markdown)
   util.cursor.place_at_end()
 
@@ -590,6 +591,13 @@ M.finalize_markdown_chat = function(buf_segment, chat_contents, text)
   M.update_chat_contents(chat_contents, "user")
 end
 
+M.maybe_insert_newline_at_buffer_end = function(bufnr, buf_lines)
+  if needs_nl(buf_lines) then
+    table.insert(buf_lines, "")
+    vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "" })
+  end
+end
+
 M.run_markdown_chat = function(chat_prompt)
   local chat_contents = M.get_chat_contents_var_or_raise()
   if not M.has_chat_contents_query_message(chat_contents) then
@@ -606,6 +614,8 @@ M.run_markdown_chat = function(chat_prompt)
 
   local bufnr = vim.api.nvim_get_current_buf()
   local buf_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  M.maybe_insert_newline_at_buffer_end(bufnr, buf_lines)
+
   local buf_segment = segment.create_segment_at(#buf_lines, 0, nil, bufnr)
   local sayer = juice.sayer()
 
@@ -619,7 +629,6 @@ M.run_markdown_chat = function(chat_prompt)
       if text then
         M.finalize_markdown_chat(buf_segment, chat_contents, text)
         M.set_chat_contents_var(chat_contents, bufnr)
-        util.cursor.place_at_end()
       end
       sayer.finish()
       buf_segment.clear_hl()
@@ -636,7 +645,9 @@ M.run_markdown_chat = function(chat_prompt)
     segment = buf_segment,
   }
 
-  buf_segment.add(M.markdown_to_text(M.to_markdown_header(header_kind.ASSISTANT)))
+  buf_segment.add(
+    M.markdown_to_text(M.to_markdown_header_with_separator(header_kind.ASSISTANT))
+  )
 
   if type(run_params) == "function" then
     -- TODO

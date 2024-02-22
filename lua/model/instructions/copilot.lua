@@ -168,7 +168,7 @@ Response:
 To read a file, you can use a [`FileReader`](src/fs/fileReader.ts) class from [src/fs/fileReader.ts](src/fs/fileReader.ts).
 ]]
 
-M.SENIOR_INSTRUCTION = M.INSTRUCTION ..  [[
+M.SENIOR_INSTRUCTION = M.INSTRUCTION .. [[
 You're also a 10x senior developer that is an expert in programming.
 Your job is to change the user's code according to their needs.
 Your job is only to change / edit the code.
@@ -186,5 +186,7 @@ M.FIX_SHORTCUT = "There is a problem in this code. Rewrite the code to show it w
 M.NEW_SHORTCUT = "Scaffold code for a new workspace."
 
 M.REFACTOR_SHORTCUT = "Refactor, modify or enhance the existing code."
+
+M.COMMIT_SHORTCUT = "Write a terse commit message according to the Conventional Commits specification. Try to stay below 80 characters total."
 
 return M

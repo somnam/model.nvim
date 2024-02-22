@@ -164,9 +164,7 @@ local chats = {
     end,
     run = openai_chat.run
   },
-  copilot = copilot.chat.build_chat(
-    copilot.chat.kind.DEFAULT, copilot.chat.user_selection
-  ),
+  copilot = copilot.chat.default_chat,
   ["copilot:explain"] = copilot.chat.build_chat(
     copilot.chat.kind.EXPLAIN, copilot.chat.user_selection
   ),

@@ -526,6 +526,13 @@ Active selection:
 ```
 ]]
 
+M.markdown.git_diff_tmpl = [[
+Git diff:
+```
+%s
+```
+]]
+
 M.markdown.format_active_selection = function(input, filetype)
   return string.format(
     M.markdown.active_selection_tmpl,
@@ -543,6 +550,23 @@ M.markdown.format_active_selection_list = function(lines, filetype)
     ),
     "\n"
   )
+end
+
+M.markdown.format_git_diff = function(git_diff)
+  return string.format(M.markdown.git_diff_tmpl, (git_diff or ""))
+end
+
+
+M.git = {}
+
+M.git.diff = function()
+  if vim.fn.executable("git") == 1 then
+    local output = vim.fn.system({ "git", "diff", "--staged" })
+    if not output:match("^diff") then
+      error("Git diff error: " .. output)
+    end
+    return output
+  end
 end
 
 return M

@@ -300,7 +300,6 @@ local function setup_commands()
       local args = table.concat(cmd_params.fargs, ' ')
 
       if chat_name ~= nil and chat_name ~= '' then -- `:Mchat [name]`
-
         local chat_prompt = get_chat_prompt(chat_name)
 
         if chat_prompt.provider.filetype == "markdown" then
@@ -361,6 +360,16 @@ local function setup_commands()
           local chat_contents = chat.contents_from_markdown(chat_prompt)
 
           chat.set_chat_contents_var(chat_contents)
+          return chat.run_markdown_chat(chat_prompt)
+        elseif vim.o.ft == "markdown" then
+          local chat_prompt = require("model.providers.copilot").chat.default_chat
+          local chat_contents = chat.contents_from_markdown(chat_prompt)
+
+          chat.set_chat_contents_var(chat_contents)
+          return chat.run_markdown_chat(chat_prompt)
+        else
+          local chat_prompt = require("model.providers.copilot").chat.default_chat
+          chat.create_markdown_chat(cmd_params, "copilot", chat_prompt)
           return chat.run_markdown_chat(chat_prompt)
         end
 
