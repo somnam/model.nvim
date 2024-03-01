@@ -165,24 +165,26 @@ local chats = {
     run = openai_chat.run
   },
   copilot = copilot.chat.default_chat,
-  ["copilot:explain"] = copilot.chat.build_chat(
-    copilot.chat.kind.EXPLAIN, copilot.chat.user_selection
-  ),
-  ["copilot:refactor"] = copilot.chat.build_chat(
-    copilot.chat.kind.REFACTOR, copilot.chat.user_selection
-  ),
-  ["copilot:workspace"] = copilot.chat.build_chat(
-    copilot.chat.kind.WORKSPACE, copilot.chat.user_args
-  ),
-  ["copilot:tests"] = copilot.chat.build_chat(
-    copilot.chat.kind.TESTS, copilot.chat.user_selection
-  ),
-  ["copilot:fix"] = copilot.chat.build_chat(
-    copilot.chat.kind.FIX, copilot.chat.user_selection
-  ),
-  ["copilot:new"] = copilot.chat.build_chat(
-    copilot.chat.kind.NEW, copilot.chat.user_args
-  ),
+  ["copilot:explain"] = copilot.chat.build_chat({
+    system = copilot.chat.instruction_from_kind(copilot.chat.kind.EXPLAIN),
+  }),
+  ["copilot:refactor"] = copilot.chat.build_chat({
+    system = copilot.chat.instruction_from_kind(copilot.chat.kind.REFACTOR),
+  }),
+  ["copilot:workspace"] = copilot.chat.build_chat({
+    system = copilot.chat.instruction_from_kind(copilot.chat.kind.WORKSPACE),
+    create = copilot.chat.user_args,
+  }),
+  ["copilot:tests"] = copilot.chat.build_chat({
+    system = copilot.chat.instruction_from_kind(copilot.chat.kind.TESTS),
+  }),
+  ["copilot:fix"] = copilot.chat.build_chat({
+    system = copilot.chat.instruction_from_kind(copilot.chat.kind.FIX),
+  }),
+  ["copilot:new"] = copilot.chat.build_chat({
+    system = copilot.chat.instruction_from_kind(copilot.chat.kind.NEW),
+    create = copilot.chat.user_args,
+  }),
 }
 
 return chats

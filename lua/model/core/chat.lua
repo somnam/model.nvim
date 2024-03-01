@@ -478,11 +478,6 @@ M.contents_to_markdown = function(chat_contents)
     vim.list_extend(markdown, M.to_markdown_section(message.role, content))
   end
 
-  local last_message = chat_contents.messages[#chat_contents.messages]
-  if last_message.role ~= "user" then
-    vim.list_extend(markdown, M.to_markdown_header(header_kind.USER))
-  end
-
   return markdown
 end
 

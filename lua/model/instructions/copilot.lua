@@ -168,25 +168,18 @@ Response:
 To read a file, you can use a [`FileReader`](src/fs/fileReader.ts) class from [src/fs/fileReader.ts](src/fs/fileReader.ts).
 ]]
 
-M.SENIOR_INSTRUCTION = M.INSTRUCTION .. [[
-You're also a 10x senior developer that is an expert in programming.
+M.SENIOR_INSTRUCTION = [[
+You're a 10x senior developer that is an expert in programming.
 Your job is to change the user's code according to their needs.
 Your job is only to change / edit the code.
 Your code output should keep the same level of indentation as the user's code.
 You MUST add whitespace in the beginning of each line as needed to match the user's code.
 ]]
 
-
-M.TEST_SHORTCUT = "Write a set of detailed unit test functions for the code above."
-
-M.EXPLAIN_SHORTCUT = "Write a explanation for the code above as paragraphs of text."
-
-M.FIX_SHORTCUT = "There is a problem in this code. Rewrite the code to show it with the bug fixed."
-
-M.NEW_SHORTCUT = "Scaffold code for a new workspace."
-
-M.REFACTOR_SHORTCUT = "Refactor, modify or enhance the existing code."
-
-M.COMMIT_SHORTCUT = "Write a terse commit message according to the Conventional Commits specification. Try to stay below 80 characters total."
+M.COMMIT_INSTRUCTION = [[
+Write a git commit message. Use the Conventional Commits specification and follow best practices to maintain clear and concise commit messages.
+Generate a meaningful commit message for the given changes. Describe the changes briefly and why they were made using present tense.
+If available, use the hint provided by the user to help you write the commit message. Remember, do not preface the commit with anything and add a short description of why the commit was done after the commit message.
+]]
 
 return M

@@ -137,33 +137,36 @@ local starters = {
     transform = extract.markdown_code
   },
   copilot = copilot.chat.default_prompt,
-  ["copilot:explain"] = copilot.chat.build_prompt(
-    copilot.chat.kind.EXPLAIN, mode.MARKDOWN_BUFFER
-  ),
-  ["copilot:refactor"] = copilot.chat.build_prompt(
-    copilot.chat.kind.REFACTOR, mode.MARKDOWN_BUFFER
-  ),
-  ["copilot:tests"] = copilot.chat.build_prompt(
-    copilot.chat.kind.TESTS, mode.MARKDOWN_BUFFER
-  ),
-  ["copilot:fix"] = copilot.chat.build_prompt(
-    copilot.chat.kind.FIX, mode.MARKDOWN_BUFFER
-  ),
-  ["copilot:commit"] = vim.tbl_deep_extend(
-    "force",
-    copilot.chat.default_prompt,
-    {
-      builder = function()
-        return {
-          messages = {
-            { role = "system", content = util.markdown.format_git_diff(util.git.diff()) },
-            { role = "user", content = copilot.chat.shortcuts[copilot.chat.kind.COMMIT] },
-          }
+  ["copilot:explain"] = copilot.chat.build_prompt({
+    instruction = copilot.chat.instruction_from_kind(copilot.chat.kind.EXPLAIN),
+    mode = mode.MARKDOWN_BUFFER
+  }),
+  ["copilot:refactor"] = copilot.chat.build_prompt({
+    instruction = copilot.chat.instruction_from_kind(copilot.chat.kind.REFACTOR),
+    mode = mode.MARKDOWN_BUFFER
+  }),
+  ["copilot:tests"] = copilot.chat.build_prompt({
+    instruction = copilot.chat.instruction_from_kind(copilot.chat.kind.TESTS),
+    mode = mode.MARKDOWN_BUFFER
+  }),
+  ["copilot:fix"] = copilot.chat.build_prompt({
+    instruction = copilot.chat.instruction_from_kind(copilot.chat.kind.FIX),
+    mode = mode.MARKDOWN_BUFFER
+  }),
+  ["copilot:commit"] = copilot.chat.build_prompt({
+    instruction = copilot.chat.instruction_from_kind(copilot.chat.kind.COMMIT),
+    builder = function()
+      return {
+        messages = {
+          {
+            role = "user",
+            content = util.markdown.format_git_diff(util.git.diff())
+          },
         }
-      end,
-      mode = mode.INSERT,
-    }
-  ),
+      }
+    end,
+    mode = mode.INSERT
+  }),
   commit = {
     provider = openai,
     mode = mode.INSERT,
