@@ -409,7 +409,7 @@ M.create_markdown_buffer = function(chat_name, chat_contents, smods)
 
   local bufnr = vim.api.nvim_get_current_buf()
   local date = os.date("%Y-%m-%d %H:%M:%S")
-  vim.api.nvim_buf_set_name(bufnr, string.format("chat at %s.md", date))
+  vim.api.nvim_buf_set_name(bufnr, string.format("chat started at %s.md", date))
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, chat_markdown)
   util.cursor.place_at_end()
 
@@ -619,11 +619,13 @@ M.run_markdown_chat = function(chat_prompt)
     on_partial = function(text)
       buf_segment.add(text)
       sayer.say(text)
+      util.cursor.place_at_end()
     end,
     on_finish = function(text, reason)
       if text then
         M.finalize_markdown_chat(buf_segment, chat_contents, text)
         M.set_chat_contents_var(chat_contents, bufnr)
+        util.cursor.place_at_end()
       end
       sayer.finish()
       buf_segment.clear_hl()
