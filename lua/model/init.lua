@@ -7,43 +7,50 @@ local input = require('model.core.input')
 
 local M = {}
 
-local function yank_with_line_numbers_and_filename(register)
+local function yank_with_line_numbers_and_filename(register, whole_file)
   register = register or '"'
 
-  -- Get the visual selection range
-  local start_line = vim.fn.line("'<")
-  local end_line = vim.fn.line("'>")
-  ---@cast start_line number
-  ---@cast end_line number
-
   -- Capture the selected lines
-  local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+  local lines, filename, buf_name
+  do
+    buf_name = vim.fn.expand('%')
+    if buf_name ~= '' then
+      filename = util.path.relative_norm(buf_name)
+    else
+      filename = '[No Name]'
+    end
 
-  -- Get current buffer's file name
-  local filename = vim.fn.expand('%')
-  filename = filename ~= "" and filename or "[No Name]"
-  filename = filename .. '#L' .. start_line .. '-L' .. end_line
+    -- Get the visual selection range
+    local start_line = vim.fn.line("'<")
+    local end_line = vim.fn.line("'>")
+    ---@cast start_line number
+    ---@cast end_line number
 
-  -- Add the filename and the markdown code fence language syntax
-  local file_info = "File: `" .. filename .. "`\n```"
-
-  -- Deduce language from filetype (assuming filename includes proper extension)
-  local filetype = vim.bo.filetype
-
-  if filetype and filetype ~= "" then
-    file_info = file_info .. filetype .. "\n"
-  else
-    file_info = file_info .. "\n"
+    if whole_file then
+      lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    else
+      lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+      filename = filename .. '#L' .. start_line .. '-L' .. end_line
+    end
   end
 
-  -- Join lines into a single string and close the code fence
-  local with_numbers = file_info .. table.concat(lines, "\n") .. "\n```\n"
+  -- Add the filename and the markdown code fence language syntax
+  local file_info = 'File: `' .. filename .. '`\n```'
+  local filetype = vim.fn.expand('%:e')
+
+  if filetype and filetype ~= '' then
+    file_info = file_info .. filetype .. '\n'
+  else
+    file_info = file_info .. '\n'
+  end
+
+  local result = file_info .. table.concat(lines, '\n') .. '\n```\n'
 
   -- Set the content in the chosen register
-  vim.fn.setreg(register, with_numbers)
+  vim.fn.setreg(register, result)
 
   -- Return the result as a string
-  return with_numbers
+  return result
 end
 
 local function command_request_completion(cmd_params)
@@ -71,7 +78,8 @@ local function command_request_completion(cmd_params)
   return provider.request_completion(prompt, args, want_visual_selection)
 end
 
-local function command_request_multi_completion_streams(cmd_params)
+---@diagnostic disable-next-line: unused-function, unused-local
+local function _command_request_multi_completion_streams(cmd_params)
   local prompt_names = cmd_params.fargs
 
   local found_prompts = vim.tbl_map(function(name)
@@ -79,7 +87,6 @@ local function command_request_multi_completion_streams(cmd_params)
       scopes.get_prompt(name),
       "Prompt '" .. name .. "' wasn't found"
     )
-
   end, prompt_names)
   local want_visual_selection = cmd_params.range ~= 0
 
@@ -89,10 +96,20 @@ local function command_request_multi_completion_streams(cmd_params)
   )
 end
 
-local function create_deprecated_command(deprecated_name, new_name, cmd_fn, opts)
+---@diagnostic disable-next-line: unused-function, unused-local
+local function _create_deprecated_command(
+  deprecated_name,
+  new_name,
+  cmd_fn,
+  opts
+)
   vim.api.nvim_create_user_command(deprecated_name, function(...)
     vim.notify(
-      "Command '" .. deprecated_name .. "' is deprecated. Use '" .. new_name .. "' instead.",
+      "Command '"
+        .. deprecated_name
+        .. "' is deprecated. Use '"
+        .. new_name
+        .. "' instead.",
       vim.log.levels.WARN
     )
     return cmd_fn(...)
@@ -103,8 +120,11 @@ end
 
 local function setup_commands()
   local function flash(count, wait, seg, highlight, after)
-    vim.defer_fn(function ()
-      if count == 0 then after() return end
+    vim.defer_fn(function()
+      if count == 0 then
+        after()
+        return
+      end
 
       if count % 2 == 0 then
         seg.highlight(highlight)
@@ -116,137 +136,92 @@ local function setup_commands()
     end, wait)
   end
 
-  vim.api.nvim_create_user_command(
-    'LlmMulti',
-    function(...)
-      vim.notify(
-        'LlmMulti is going to be removed. Open a GH issue to keep it if you use it!',
-        vim.log.levels.WARN
-      )
+  vim.api.nvim_create_user_command('Mcancel', function()
+    local seg = segment.query(util.cursor.position())
 
-      return command_request_multi_completion_streams(...)
-    end,
-    {
-      force = true,
-      range = true,
-      nargs = '+',
-      desc = 'Request multiple prompts at the same time',
-      complete = scopes.complete_arglead_prompt_names,
+    seg.highlight('Special')
+
+    local cancel = seg.data.cancel
+
+    if cancel ~= nil then
+      cancel()
+    else
+      vim.notify('Not cancellable', vim.log.levels.WARN)
+    end
+  end, {
+    range = true,
+    desc = 'Cancel the completion under the cursor',
+    force = true,
+  })
+
+  vim.api.nvim_create_user_command('Mdelete', function()
+    local seg = segment.query(util.cursor.position())
+    if seg then
+      flash(6, 80, seg, 'DiffDelete', function()
+        seg.delete()
+      end)
+    end
+  end, {
+    range = true,
+    desc = 'Delete the completion under the cursor, replacing with original text if replacement',
+    force = true,
+  })
+
+  vim.api.nvim_create_user_command('Mshow', function()
+    local seg = segment.query(util.cursor.position())
+    if seg then
+      flash(10, 80, seg, 'DiffChange', util.noop)
+    end
+  end, {
+    range = true,
+    force = true,
+    desc = 'Show the completion under the cursor',
+  })
+
+  vim.api.nvim_create_user_command('Mselect', function()
+    local seg = segment.query(util.cursor.position())
+
+    if seg == nil then
+      return
+    end
+
+    local details = seg.details()
+
+    local start = {
+      row = details.row,
+      col = details.col,
     }
-  )
 
-  create_deprecated_command(
-    'LlmCancel',
-    'Mcancel',
-    function()
-      local seg = segment.query(util.cursor.position())
-
-      seg.highlight('Special')
-
-      local cancel = seg.data.cancel
-
-      if cancel ~= nil then
-        cancel()
-      else
-        vim.notify('Not cancellable', vim.log.levels.WARN)
-      end
-    end,
-    {
-      range = true,
-      desc = 'Cancel the completion under the cursor',
-      force = true
+    local stop = {
+      row = details.details.end_row,
+      col = details.details.end_col,
     }
-  )
 
-  create_deprecated_command(
-    'LlmDelete',
-    'Mdelete',
-    function()
-      local seg = segment.query(util.cursor.position())
-      if seg then
-        flash(6, 80, seg, 'DiffDelete', function() seg.delete() end)
-      end
-    end,
-    {
-      range = true,
-      desc = 'Delete the completion under the cursor, replacing with original text if replacement',
-      force = true
-    }
-  )
+    local visual_select_keys = util.cursor.place_with_keys(start)
+      .. 'v'
+      .. util.cursor.place_with_keys(stop)
 
-  create_deprecated_command(
-    'LlmShow',
-    'Mshow',
-    function()
-      local seg = segment.query(util.cursor.position())
-      if seg then
-        flash(10, 80, seg, 'DiffChange', util.noop)
-      end
-    end,
-    {
-      range = true,
-      force = true,
-      desc = 'Show the completion under the cursor'
-    }
-  )
+    vim.api.nvim_feedkeys(visual_select_keys, 'n', true)
+  end, {
+    force = true,
+    desc = 'Select the completion under the cursor',
+  })
 
-  create_deprecated_command(
-    'LlmSelect',
-    'Mselect',
-    function()
-      local seg = segment.query(util.cursor.position())
+  vim.api.nvim_create_user_command('M', command_request_completion, {
+    range = true,
+    desc = 'Request completion of selection',
+    force = true,
+    nargs = '*',
+    complete = scopes.complete_arglead_prompt_names,
+  })
 
-      if seg == nil then return end
-
-      local details = seg.details()
-
-      local start = {
-        row = details.row,
-        col = details.col
-      }
-
-      local stop = {
-        row = details.details.end_row,
-        col = details.details.end_col
-      }
-
-      local visual_select_keys =
-        util.cursor.place_with_keys(start)
-        .. 'v'
-        .. util.cursor.place_with_keys(stop)
-
-      vim.api.nvim_feedkeys(visual_select_keys, 'n', true)
-    end,
-    {
-      force = true,
-      desc = 'Select the completion under the cursor'
-    }
-  )
-
-  create_deprecated_command(
-    'Llm',
-    'M',
-    command_request_completion,
-    {
-      range = true,
-      desc = 'Request completion of selection',
-      force = true,
-      nargs='*',
-      complete = scopes.complete_arglead_prompt_names,
-    }
-  )
-
-  vim.api.nvim_create_user_command(
-    'Model',
-    command_request_completion,
-    {
-      range = true,
-      desc = 'Request completion of selection',
-      force = true,
-      nargs='*',
-      complete = scopes.complete_arglead_prompt_names,
-    }
-  )
+  vim.api.nvim_create_user_command('Model', command_request_completion, {
+    range = true,
+    desc = 'Request completion of selection',
+    force = true,
+    nargs = '*',
+    complete = scopes.complete_arglead_prompt_names,
+  })
 
   local store = require('model.store')
 
@@ -259,32 +234,27 @@ local function setup_commands()
     end,
     init = function()
       store.init()
-    end
+    end,
   }
 
-  create_deprecated_command(
-    'LlmStore',
-    'Mstore',
-    function(a)
-      -- local args = a.fargs
-      local command = a.fargs[1]
+  vim.api.nvim_create_user_command('Mstore', function(a)
+    -- local args = a.fargs
+    local command = a.fargs[1]
 
-      local handler = handle_store_command[command]
-      if handler == nil then
-        error('Unknown Mstore command ' .. command)
-      else
-        return handler(a)
-      end
+    local handler = handle_store_command[command]
+    if handler == nil then
+      error('Unknown Mstore command ' .. command)
+    else
+      return handler(a)
+    end
+  end, {
+    desc = 'Mstore',
+    force = true,
+    nargs = '+',
+    complete = function(arglead)
+      return vim.fn.matchfuzzy(vim.tbl_keys(handle_store_command), arglead)
     end,
-    {
-      desc = 'Mstore',
-      force = true,
-      nargs='+',
-      complete = function(arglead)
-        return vim.fn.matchfuzzy(vim.tbl_keys(handle_store_command), arglead)
-      end
-    }
-  )
+  })
 
   local function get_chat_prompt(chat_name)
     return assert(
@@ -293,151 +263,143 @@ local function setup_commands()
     )
   end
 
-  vim.api.nvim_create_user_command(
-    'Mchat',
-    function(cmd_params)
-      local chat_name = table.remove(cmd_params.fargs, 1)
-      local args = table.concat(cmd_params.fargs, ' ')
+  vim.api.nvim_create_user_command('Mchat', function(cmd_params)
+    local chat_name = table.remove(cmd_params.fargs, 1)
+    local args = table.concat(cmd_params.fargs, ' ')
 
-      if chat_name ~= nil and chat_name ~= '' then -- `:Mchat [name]`
-        local chat_prompt = get_chat_prompt(chat_name)
+    if chat_name ~= nil and chat_name ~= '' then -- `:Mchat [name]`
+      local chat_prompt = get_chat_prompt(chat_name)
 
-        if chat_prompt.provider.filetype == "markdown" then
-          chat.create_markdown_chat(cmd_params, chat_name, chat_prompt)
-          return chat.run_markdown_chat(chat_prompt)
-        end
-
-        local input_context =
-          input.get_input_context(
-            input.get_source(cmd_params.range ~= 0), -- want_visual_selection
-            args
-          )
-
-        if vim.o.ft == 'mchat' then
-          -- copy current messages to a new built buffer with target settings
-
-          local current = chat.parse(
-            table.concat(
-              vim.api.nvim_buf_get_lines(0, 0, -1, false),
-              '\n'
-            )
-          )
-
-          local target = chat.build_contents(chat_prompt, input_context)
-
-          if args == '-' then -- if args is `-`, use the current system instruction
-            target.config.system = current.contents.config.system
-          elseif args ~= '' then -- if args is not empty, use that as system instruction
-            target.config.system = args
-          end
-
-          chat.create_buffer(
-            chat.to_string(
-              {
-                config = target.config,
-                messages = current.contents.messages,
-              },
-              chat_name
-            ),
-            cmd_params.smods
-          )
-        else
-          local chat_contents = chat.build_contents(chat_prompt, input_context)
-
-          if args ~= '' then
-            chat_contents.config.system = args
-          end
-
-          chat.create_buffer(
-            chat.to_string(chat_contents, chat_name),
-            cmd_params.smods
-          )
-        end
-
-      else -- `:Mchat`
-        if chat.has_chat_contents_var() then
-          local chat_prompt = get_chat_prompt(chat.chat_name_from_markdown())
-          local chat_contents = chat.contents_from_markdown(chat_prompt)
-
-          chat.set_chat_contents_var(chat_contents)
-          return chat.run_markdown_chat(chat_prompt)
-        elseif vim.o.ft == "markdown" then
-          local chat_prompt = require("model.providers.copilot").chat.default_chat
-          local chat_contents = chat.contents_from_markdown(chat_prompt)
-
-          chat.set_chat_contents_var(chat_contents)
-          return chat.run_markdown_chat(chat_prompt)
-        else
-          local chat_prompt = require("model.providers.copilot").chat.default_chat
-          chat.create_markdown_chat(cmd_params, "copilot", chat_prompt)
-          return chat.run_markdown_chat(chat_prompt)
-        end
-
-        if vim.o.ft ~= 'mchat' then
-          error('Not in mchat buffer. Either `:set ft=mchat` or run `:Mchat [name]`.')
-        end
-
-        chat.run_chat(M.opts)
-
+      if chat_prompt.provider.filetype == "markdown" then
+        chat.create_markdown_chat(cmd_params, chat_name, chat_prompt)
+        return chat.run_markdown_chat(chat_prompt)
       end
-    end,
-    {
-      desc = 'Mchat',
-      force = true,
-      range = true,
-      nargs = '*',
-      complete = function(arglead)
-        local chats = M.opts.chats
-        if chats == nil then return end
 
-        local chat_names = {}
-
-        for name in util.module.autopairs(chats) do
-          local name_ = name:gsub(' ', '\\ ')
-          table.insert(chat_names, name_)
-        end
-
-        if #arglead == 0 then return chat_names end
-
-        return vim.fn.matchfuzzy(chat_names, arglead)
-      end
-    })
-
-  vim.api.nvim_create_user_command(
-    'Mcount',
-    function()
-      local count = require('model.store.util').tiktoken_count
-      local text = table.concat(
-        vim.api.nvim_buf_get_lines(0, 0, -1, false),
-        '\n'
+      local input_context = input.get_input_context(
+        input.get_source(cmd_params.range ~= 0), -- want_visual_selection
+        args
       )
 
       if vim.o.ft == 'mchat' then
-        local parsed = chat.parse(text)
-        local total = count(vim.json.encode(parsed.contents.messages))
+        -- copy current messages to a new built buffer with target settings
 
-        if parsed.contents.config.system then
-          total = total + count(parsed.contents.config.system)
+        local current = chat.parse(
+          table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n')
+        )
+
+        local target = chat.build_contents(chat_prompt, input_context)
+
+        if args == '-' then -- if args is `-`, use the current system instruction
+          target.config.system = current.contents.config.system
+        elseif args ~= '' then -- if args is not empty, use that as system instruction
+          target.config.system = args
         end
 
-        util.show(total)
+        chat.create_buffer(
+          chat.to_string({
+            config = target.config,
+            messages = current.contents.messages,
+          }, chat_name),
+          cmd_params.smods
+        )
       else
-        util.show(count(text))
-      end
-    end,
-    {}
-  )
+        local chat_contents = chat.build_contents(chat_prompt, input_context)
 
-  vim.api.nvim_create_user_command(
-    'Myank',
-    function(cmd_params)
-      yank_with_line_numbers_and_filename(cmd_params.args)
+        if args ~= '' then
+          chat_contents.config.system = args
+        end
+
+        chat.create_buffer(
+          chat.to_string(chat_contents, chat_name),
+          cmd_params.smods
+        )
+      end
+    else -- `:Mchat`
+      if chat.has_chat_contents_var() then
+        local chat_prompt = get_chat_prompt(chat.chat_name_from_markdown())
+        local chat_contents = chat.contents_from_markdown(chat_prompt)
+
+        chat.set_chat_contents_var(chat_contents)
+        return chat.run_markdown_chat(chat_prompt)
+      elseif vim.o.ft == "markdown" then
+        local chat_prompt = require("model.providers.copilot").chat.default_chat
+        local chat_contents = chat.contents_from_markdown(chat_prompt)
+
+        chat.set_chat_contents_var(chat_contents)
+        return chat.run_markdown_chat(chat_prompt)
+      else
+        local chat_prompt = require("model.providers.copilot").chat.default_chat
+        chat.create_markdown_chat(cmd_params, "copilot", chat_prompt)
+        return chat.run_markdown_chat(chat_prompt)
+      end
+
+      if vim.o.ft ~= 'mchat' then
+        error(
+          'Not in mchat buffer. Either `:set ft=mchat` or run `:Mchat [name]`.'
+        )
+      end
+
+      chat.run_chat(M.opts)
+    end
+  end, {
+    desc = 'Mchat',
+    force = true,
+    range = true,
+    nargs = '*',
+    complete = function(arglead)
+      local chats = M.opts.chats
+      if chats == nil then
+        return
+      end
+
+      local chat_names = {}
+
+      for name in util.module.autopairs(chats) do
+        local name_ = name:gsub(' ', '\\ ')
+        table.insert(chat_names, name_)
+      end
+
+      if #arglead == 0 then
+        return chat_names
+      end
+
+      return vim.fn.matchfuzzy(chat_names, arglead)
     end,
-    {
-      range = true,
-      nargs = '?',
-    }
-  )
+  })
+
+  vim.api.nvim_create_user_command('Mcount', function()
+    local count = require('model.store.util').tiktoken_count
+    local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n')
+
+    if vim.o.ft == 'mchat' then
+      local parsed = chat.parse(text)
+      local total = count(vim.json.encode(parsed.contents.messages))
+
+      if parsed.contents.config.system then
+        total = total + count(parsed.contents.config.system)
+      end
+
+      util.show(total)
+    else
+      util.show(count(text))
+    end
+  end, {})
+
+  vim.api.nvim_create_user_command('Myank', function(cmd_params)
+    yank_with_line_numbers_and_filename(cmd_params.args, cmd_params.range == 0)
+  end, {
+    range = true,
+    nargs = '?',
+  })
+
+  local qflist = require('model.util.qflist')
+
+  vim.api.nvim_create_user_command('MCadd', qflist.add, {})
+  vim.api.nvim_create_user_command('MCremove', qflist.remove, {})
+  vim.api.nvim_create_user_command('MCclear', qflist.clear, {})
+  vim.api.nvim_create_user_command('MCpaste', function()
+    vim.api.nvim_put(vim.fn.split(qflist.get_text(), '\n'), 'l', true, true)
+  end, {})
 end
 
 ---@class SetupOptions
@@ -452,7 +414,7 @@ function M.setup(opts)
   M.opts = vim.tbl_extend('force', {
     default_prompt = require('model.providers.openai').default_prompt,
     prompts = require('model.prompts.starters'),
-    chats = require('model.prompts.chats')
+    chats = require('model.prompts.chats'),
   }, opts or {})
 
   if M.opts.prompts then
@@ -475,4 +437,3 @@ end
 M.mode = provider.mode -- convenience export
 
 return M
-
